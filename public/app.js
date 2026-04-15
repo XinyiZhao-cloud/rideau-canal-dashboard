@@ -42,7 +42,7 @@ function renderCards(data) {
         card.innerHTML = `
       <h3>${item.location}</h3>
       <div class="badge ${statusClass(item.safetyStatus)}">${item.safetyStatus}</div>
-      <p><strong>Avg Ice Thickness:</strong> ${item.avgIceThickness} cm</p>
+      <p><strong>Avg Ice Thickness:</strong> ${item.avgIceThickness.toFixed(2)} cm</p>
       <p><strong>Ice Range:</strong> ${item.minIceThickness.toFixed(2)} - ${item.maxIceThickness} cm</p>
       <p><strong>Avg Surface Temp:</strong> ${item.avgSurfaceTemperature.toFixed(2)} °C</p>
       <p><strong>Snow Accumulation:</strong> ${item.maxSnowAccumulation} cm</p>
@@ -59,16 +59,44 @@ function renderCards(data) {
 }
 
 function renderChart(history) {
-    const normalized = history.map(normalizeItem);
+    const normalized = history
+        .map(normalizeItem)
+        .filter(x =>
+            x.location &&
+            x.timestamp &&
+            x.avgIceThickness !== undefined &&
+            x.avgIceThickness !== null
+        );
+
     const ctx = document.getElementById("iceChart").getContext("2d");
 
-    const dowsLake = normalized.filter(x => x.location === "Dow's Lake");
-    const fifthAvenue = normalized.filter(x => x.location === "Fifth Avenue");
-    const nac = normalized.filter(x => x.location === "NAC");
+    const labels = [...new Set(
+        normalized.map(x =>
+            new Date(x.timestamp).toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit"
+            })
+        )
+    )].sort((a, b) => {
+        const today = new Date().toDateString();
+        return new Date(`${today} ${a}`) - new Date(`${today} ${b}`);
+    });
 
-    const labels = dowsLake.map(x =>
-        new Date(x.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-    );
+    function buildSeries(locationName) {
+        const map = {};
+
+        normalized
+            .filter(x => x.location === locationName)
+            .forEach(x => {
+                const label = new Date(x.timestamp).toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit"
+                });
+                map[label] = x.avgIceThickness;
+            });
+
+        return labels.map(label => map[label] ?? null);
+    }
 
     if (iceChart) {
         iceChart.destroy();
@@ -81,15 +109,15 @@ function renderChart(history) {
             datasets: [
                 {
                     label: "Dow's Lake",
-                    data: dowsLake.map(x => x.avgIceThickness)
+                    data: buildSeries("Dow's Lake")
                 },
                 {
                     label: "Fifth Avenue",
-                    data: fifthAvenue.map(x => x.avgIceThickness)
+                    data: buildSeries("Fifth Avenue")
                 },
                 {
                     label: "NAC",
-                    data: nac.map(x => x.avgIceThickness)
+                    data: buildSeries("NAC")
                 }
             ]
         },
@@ -99,6 +127,7 @@ function renderChart(history) {
         }
     });
 }
+
 
 async function loadDashboard() {
     try {

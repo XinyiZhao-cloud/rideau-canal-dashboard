@@ -46,27 +46,33 @@ app.get("/api/latest", async (req, res) => {
 
 app.get("/api/history", async (req, res) => {
     try {
-        const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-
         const querySpec = {
             query: `
-        SELECT c.location, c.windowend, c.avgicethickness, c.avgsurfacetemperature, c.safetystatus
-        FROM c
-        WHERE c.windowend >= @oneHourAgo
-        ORDER BY c.windowend ASC
-      `,
-            parameters: [
-                { name: "@oneHourAgo", value: oneHourAgo }
-            ]
+                SELECT TOP 50
+                    c.location,
+                    c.windowend,
+                    c.avgicethickness,
+                    c.avgsurfacetemperature,
+                    c.safetystatus
+                FROM c
+                ORDER BY c.windowend DESC
+            `
         };
 
         const { resources } = await container.items.query(querySpec).fetchAll();
-        res.json(resources);
+
+        const sorted = resources.sort(
+            (a, b) => new Date(a.windowend) - new Date(b.windowend)
+        );
+
+        res.json(sorted);
     } catch (error) {
         console.error("Error fetching history data:", error.message);
         res.status(500).json({ error: "Failed to fetch history data" });
     }
 });
+
+
 
 
 app.listen(PORT, () => {
