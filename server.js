@@ -1,87 +1,73 @@
 const express = require("express");
 const path = require("path");
+const { CosmosClient } = require("@azure/cosmos");
 require("dotenv").config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+const cosmosClient = new CosmosClient({
+    endpoint: process.env.COSMOS_ENDPOINT,
+    key: process.env.COSMOS_KEY,
+});
+
+const database = cosmosClient.database(process.env.COSMOS_DATABASE);
+const container = database.container(process.env.COSMOS_CONTAINER);
+
 app.use(express.static(path.join(__dirname, "public")));
 app.use(express.json());
 
-// Temporary mock API for local development
-app.get("/api/latest", (req, res) => {
-    res.json([
-        {
-            location: "Dow's Lake",
-            timestamp: new Date().toISOString(),
-            avgIceThickness: 31.2,
-            minIceThickness: 30.1,
-            maxIceThickness: 32.4,
-            avgSurfaceTemperature: -3.5,
-            minSurfaceTemperature: -4.2,
-            maxSurfaceTemperature: -2.8,
-            maxSnowAccumulation: 2.1,
-            avgExternalTemperature: -6.0,
-            readingCount: 30,
-            safetyStatus: "Safe"
-        },
-        {
-            location: "Fifth Avenue",
-            timestamp: new Date().toISOString(),
-            avgIceThickness: 26.8,
-            minIceThickness: 25.9,
-            maxIceThickness: 27.5,
-            avgSurfaceTemperature: -0.4,
-            minSurfaceTemperature: -1.2,
-            maxSurfaceTemperature: 0.3,
-            maxSnowAccumulation: 4.6,
-            avgExternalTemperature: -2.1,
-            readingCount: 30,
-            safetyStatus: "Caution"
-        },
-        {
-            location: "NAC",
-            timestamp: new Date().toISOString(),
-            avgIceThickness: 22.3,
-            minIceThickness: 21.8,
-            maxIceThickness: 23.0,
-            avgSurfaceTemperature: 1.5,
-            minSurfaceTemperature: 0.9,
-            maxSurfaceTemperature: 2.0,
-            maxSnowAccumulation: 5.2,
-            avgExternalTemperature: 1.8,
-            readingCount: 30,
-            safetyStatus: "Unsafe"
+app.get("/api/latest", async (req, res) => {
+    try {
+        const querySpec = {
+            query: `
+        SELECT * FROM c
+        ORDER BY c.windowEnd DESC
+      `
+        };
+
+        const { resources } = await container.items.query(querySpec).fetchAll();
+
+        const latestMap = {};
+
+        for (const item of resources) {
+            if (!latestMap[item.location]) {
+                latestMap[item.location] = item;
+            }
         }
-    ]);
-});
 
-app.get("/api/history", (req, res) => {
-    const now = Date.now();
-    const history = [];
-
-    const locations = [
-        { name: "Dow's Lake", base: 31 },
-        { name: "Fifth Avenue", base: 27 },
-        { name: "NAC", base: 23 }
-    ];
-
-    for (const location of locations) {
-        for (let i = 11; i >= 0; i--) {
-            history.push({
-                location: location.name,
-                timestamp: new Date(now - i * 5 * 60 * 1000).toISOString(),
-                avgIceThickness: Number((location.base + (Math.random() * 2 - 1)).toFixed(1)),
-                avgSurfaceTemperature: Number((-3 + Math.random() * 5).toFixed(1)),
-                safetyStatus:
-                    location.base >= 30 ? "Safe" :
-                        location.base >= 25 ? "Caution" : "Unsafe"
-            });
-        }
+        res.json(Object.values(latestMap));
+    } catch (error) {
+        console.error("Error fetching latest data:", error.message);
+        res.status(500).json({ error: "Failed to fetch latest data" });
     }
-
-    res.json(history);
 });
+
+
+app.get("/api/history", async (req, res) => {
+    try {
+        const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+
+        const querySpec = {
+            query: `
+        SELECT c.location, c.windowend, c.avgicethickness, c.avgsurfacetemperature, c.safetystatus
+        FROM c
+        WHERE c.windowend >= @oneHourAgo
+        ORDER BY c.windowend ASC
+      `,
+            parameters: [
+                { name: "@oneHourAgo", value: oneHourAgo }
+            ]
+        };
+
+        const { resources } = await container.items.query(querySpec).fetchAll();
+        res.json(resources);
+    } catch (error) {
+        console.error("Error fetching history data:", error.message);
+        res.status(500).json({ error: "Failed to fetch history data" });
+    }
+});
+
 
 app.listen(PORT, () => {
     console.log(`Dashboard server running on http://localhost:${PORT}`);
