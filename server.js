@@ -22,7 +22,7 @@ app.get("/api/latest", async (req, res) => {
         const querySpec = {
             query: `
         SELECT * FROM c
-        ORDER BY c.windowEnd DESC
+        ORDER BY c.windowend DESC
       `
         };
 
