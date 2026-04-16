@@ -12,7 +12,26 @@
 This project is a real-time monitoring system for the Rideau Canal skating conditions.  
 It processes IoT sensor data using Azure services and visualizes the results through a web-based dashboard.  
 
-The system provides insights into ice thickness, temperature, and safety conditions across multiple locations.  
+The system provides insights into ice thickness, temperature, and safety conditions across multiple locations. 
+
+### Dashboard Architecture
+```mermaid
+graph TD
+    A["User Browser"] --> B["Web Dashboard UI"]
+
+    B -->|Periodic Fetch every 30s| C["Node.js Backend"]
+
+    C -->|Query Latest Data| D["Cosmos DB"]
+
+    D --> C
+
+    C -->|JSON Response| B
+
+    B -->|Update Charts and Status| A
+```
+The dashboard architecture illustrates how users interact with the system through a web-based interface. 
+The frontend sends periodic API requests to the Node.js backend to retrieve the latest and historical data from Cosmos DB.   
+The backend processes these requests and returns JSON responses that dynamically update the dashboard, including charts and safety status indicators, in near real time.
 
 ## Dashboard Features
 - Real-time system status updates
@@ -28,6 +47,7 @@ The system provides insights into ice thickness, temperature, and safety conditi
 - Azure IoT Hub
 - Chart.js (data visualization)
 - Azure Web App Service (deployment)
+- npm (Node Package Manager)
 
 ## Prerequisites
 - Node.js (v20 or higher recommended)
@@ -57,10 +77,10 @@ COSMOS_CONTAINER=SensorAggregations
 ⚠️ Note: _Sensitive credentials should not be committed to the repository._
 
 ## API Endpoints
-### Get /api/latest
+### GET /api/latest
 Returns the most recent aggregated data for each location.  
 **Example Response**
-```
+```json
 [
   {
     "location": "Dow's Lake",
@@ -73,7 +93,7 @@ Returns the most recent aggregated data for each location.
 ### GET /api/history
 Returns historical data (last hour) for visualization.  
 **Example Response**
-```
+```json
 [
   {
     "location": "Dow's Lake",
@@ -85,7 +105,7 @@ Returns historical data (last hour) for visualization.
 
 ## Deployment to Azure App Service
 ### Step-by-step deployment
-1. Create an Azure Web App
+1.  Create an Azure Web App
 2.	Select Node.js runtime
 3.	Connect the GitHub repository
 4.	Configure environment variables in Azure
@@ -98,14 +118,14 @@ In Azure App Service → Environment Variables:
 - COSMOS_DATABASE
 - COSMOS_CONTAINER
 - NODE_ENV
-Ensure:  
+
+Ensure:   
 - Node version is set correctly
 - Startup command is configured:
 ```
 node server.js
 ```
 
-## Dashboard Features
 ### Real-time Updates
 The dashboard refreshes data every 30 seconds using API calls to the backend.
 
@@ -122,9 +142,8 @@ Safety status is calculated in Stream Analytics and displayed as:
 
 The overall system status reflects the most critical condition among all locations.
 
-### Troubleshooting
-
-Issue: Dashboard shows no data
+## Troubleshooting
+### Issue: Dashboard shows no data
 - Ensure Stream Analytics job is running
 - Verify data exists in Cosmos DB
 - Check API endpoints (/api/latest, /api/history)
@@ -132,9 +151,9 @@ Issue: Dashboard shows no data
 ### Issue: API errors
 - Verify Cosmos DB connection settings
 - Check environment variables
-- Ensure backend server is running
+- Ensure the backend server is running
 
-## Issue: Deployment failure
+### Issue: Deployment failure
 - Check GitHub Actions logs
 - Ensure Node version is supported
 - Verify environment variables in Azure
@@ -146,5 +165,5 @@ Issue: Dashboard shows no data
 
 ## AI Tools Disclosure
 - **Tool:** ChatGPT
-- **Purpose:** Code generation, debugging errors, improving documentation and refine explanations
+- **Purpose:** Code generation, debugging errors, improving documentation and refining explanations
 - All final implementation, configuration, and testing were completed and validated independently.
