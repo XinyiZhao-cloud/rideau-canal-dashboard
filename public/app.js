@@ -1,9 +1,37 @@
+/**
+ * CST8916 Final Project - Dashboard Frontend Logic
+ *
+ * Author: Xinyi Zhao
+ * Student ID: 040953633
+ * Course: CST8916 Remote Data and Real-time Applications
+ * Semester: Winter 2026
+ *
+ * Description:
+ * This script handles data fetching, processing, and visualization
+ * for the Rideau Canal monitoring dashboard. It retrieves data from
+ * backend APIs and dynamically updates UI components such as cards
+ * and charts.
+ *
+ * Features:
+ * - Fetches real-time and historical data from backend APIs
+ * - Normalizes data format for consistency
+ * - Renders location-based status cards
+ * - Displays time-series chart using Chart.js
+ * - Auto-refreshes dashboard every 30 seconds
+ */
 let iceChart;
 
+/**
+ * Convert safety status to CSS class format.
+ */
 function statusClass(status) {
     return (status || "").toLowerCase();
 }
 
+/**
+ * Normalize data fields to ensure consistent naming
+ * (handles both camelCase and lowercase from Cosmos DB).
+ */
 function normalizeItem(item) {
     return {
         location: item.location,
@@ -21,6 +49,9 @@ function normalizeItem(item) {
     };
 }
 
+/**
+ * Render summary cards for each location and determine overall system status.
+ */
 function renderCards(data) {
     const cardsContainer = document.getElementById("cards");
     cardsContainer.innerHTML = "";
@@ -30,12 +61,14 @@ function renderCards(data) {
     data.forEach(raw => {
         const item = normalizeItem(raw);
 
+        // Determine overall system status
         if (item.safetyStatus === "Unsafe") {
             overallStatus = "Unsafe";
         } else if (item.safetyStatus === "Caution" && overallStatus !== "Unsafe") {
             overallStatus = "Caution";
         }
 
+        // Create card UI element
         const card = document.createElement("div");
         card.className = "card";
 
@@ -54,10 +87,14 @@ function renderCards(data) {
         cardsContainer.appendChild(card);
     });
 
+    // Update overall system status display
     document.getElementById("system-status").textContent =
         `Overall System Status: ${overallStatus}`;
 }
 
+/**
+ * Render line chart showing ice thickness trends over time.
+ */
 function renderChart(history) {
     const normalized = history
         .map(normalizeItem)
@@ -70,6 +107,7 @@ function renderChart(history) {
 
     const ctx = document.getElementById("iceChart").getContext("2d");
 
+    // Extract unique time labels sorted in chronological order
     const labels = [...new Set(
         normalized.map(x =>
             new Date(x.timestamp).toLocaleTimeString([], {
@@ -82,6 +120,9 @@ function renderChart(history) {
         return new Date(`${today} ${a}`) - new Date(`${today} ${b}`);
     });
 
+    /**
+     * Build dataset for each location.
+     */
     function buildSeries(locationName) {
         const map = {};
 
@@ -97,11 +138,12 @@ function renderChart(history) {
 
         return labels.map(label => map[label] ?? null);
     }
-
+    // Destroy previous chart instance before re-rendering
     if (iceChart) {
         iceChart.destroy();
     }
 
+    // Create new Chart.js line chart
     iceChart = new Chart(ctx, {
         type: "line",
         data: {
@@ -128,7 +170,9 @@ function renderChart(history) {
     });
 }
 
-
+/**
+ * Fetch latest and historical data and update dashboard.
+ */
 async function loadDashboard() {
     try {
         const latestResponse = await fetch("/api/latest");
@@ -145,5 +189,6 @@ async function loadDashboard() {
     }
 }
 
+// Initial load + auto-refresh every 30 seconds
 loadDashboard();
 setInterval(loadDashboard, 30000);
