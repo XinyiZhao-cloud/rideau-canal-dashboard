@@ -143,3 +143,8 @@ Issue: Dashboard shows no data
 - Data is processed in real time using Azure Stream Analytics
 - Cosmos DB is used for fast querying of aggregated results
 - Blob Storage is used for historical data archiving
+
+## AI Tools Disclosure
+- **Tool:** ChatGPT
+- **Purpose:** Code generation, debugging errors, improving documentation and refine explanations
+- All final implementation, configuration, and testing were completed and validated independently.
